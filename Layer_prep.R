@@ -35,6 +35,16 @@ writeRaster(test_N_heath_1km,"spatial_data/test_N_heath_1km.tif") #save raster f
 
 
 
+### Clip rasters to England boundaries 
+
+#option 1: clip shapefiles (should be first step)
+#bound<-st_read("spatial_data/boundaries2.shp")
+#N_heath_1k_bound<- st_intersection(N_heath_shp, bound)
+
+#option 2: reassign raster values (after rescale)
+#N_heath_1k_bound<- ifelse(Eng_bound>0,NA,N_heath_1km)
+
+
 
 
 
