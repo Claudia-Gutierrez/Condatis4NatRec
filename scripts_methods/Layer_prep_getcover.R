@@ -7,7 +7,12 @@ S_phi<-st_read("spatial_data/derived/Priority_Habitat_Inventory_England_2.shp")
 
 #subset heathland habitats
 N_heath<- N_phi[grep('*HEAT',N_phi$habcodes),]
+
+st_write(N_heath, "spatial_data/derived", "N_heath", driver= "ESRI Shapefile")
+
 S_heath<- S_phi[grep('*HEAT',S_phi$habcodes),]
+
+st_write(S_heath, "spatial_data/derived", "S_heath", driver= "ESRI Shapefile")
 
 #Join north and south
 phi_full<- st_union(N_heath, S_heath)
