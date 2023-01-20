@@ -3,7 +3,7 @@ library (sf)
 
 #Convert to raster with the characteristics of the 100m- England boundaries raster
 Eng_bound<-raster("spatial_data/derived/england.anything.100.tif")#extent reference w/British National Grid 
-Nat_heath<-st_read("spatial_data/derived/Nat_heathland.shp")
+Nat_heath<-st_read("spatial_data/derived/Nat_heath.shp")
 
 # Set up a raster "template" to rasterize PHI shapefile
 ext <- extent(Eng_bound) #extent of the England boundaries raster
