@@ -21,14 +21,3 @@ nat_heath_1k<- aggregate(nat_heath_250m, fact = 4, fun= sum, na.rm=TRUE)/16 #res
 
 crs(nat_heath_1k)<-"EPSG:27700" #assign spatial reference British National Grid
 writeRaster(nat_heath_1k,"spatial_data/derived/Nat_1km_heathland.tif",overwrite=TRUE) #save raster for national scale analyses
-
-
-
-
-
-
-
-
-
-
-
