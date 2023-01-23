@@ -14,10 +14,22 @@ r <- raster(ext, res=gridsize)
 nat_heath_250m<-rasterize(Nat_heath, r,getCover=TRUE) #convert to 250m-resolution raster 
 NAvalue(nat_heath_250m) <- 0
 
-crs(nat_heath_250m)<-"EPSG:27700" #assign spatial reference British National Grid
-writeRaster(nat_heath_250m,"spatial_data/derived/Nat_250m_heathland.tif", na.rm=TRUE,overwrite=TRUE) #save raster 
+writeRaster(nat_heath_250m,"spatial_data/derived/Nat_250m_heath_int.tif", na.rm=TRUE) #save raster as spatial reference is not assigned to 'Formal class Raster Layer' objects
 
+nat_heath_250m<-raster("spatial_data/derived/Nat_250m_heath_int.tif")
+#assign spatial reference and rewrite
+crs(nat_heath_250m)<-"EPSG:27700"
+writeRaster(nat_heath_250m,"spatial_data/derived/Nat_250m_heathland.tif")
+
+
+#re-sample at 1km-resolution
 nat_heath_1k<- aggregate(nat_heath_250m, fact = 4, fun= sum, na.rm=TRUE)/16 #rescale raster to 1km-resolution where raster value equals to the sum of the proportion of habitat in 250m-pixels within 1k pixels
 
-crs(nat_heath_1k)<-"EPSG:27700" #assign spatial reference British National Grid
-writeRaster(nat_heath_1k,"spatial_data/derived/Nat_1km_heathland.tif",overwrite=TRUE) #save raster for national scale analyses
+writeRaster(nat_heath_1km,"spatial_data/derived/Nat_1km_heath_int.tif", na.rm=TRUE) #save raster 
+
+nat_heath_1km<-raster("spatial_data/derived/Nat_1km_heath_int.tif")
+#assign spatial reference and rewrite
+crs(nat_heath_1km)<-"EPSG:27700"
+writeRaster(nat_heath_1km,"spatial_data/derived/Nat_1km_heathland.tif")
+
+
