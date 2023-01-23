@@ -160,5 +160,5 @@ bpt$sector2<-factor(bpt$cutangle,labels=c(
    
    #sectors<- rasterFromXYZ(bpt[,c(1,2,5)],crs=crs(loregionb),res=res(loregionb))#also does not work
    crs(sectors)
-   writeRaster(sectors,"spatial_data/derived/engboundary8sects1km_2.tif")
+   writeRaster(sectors,"spatial_data/derived/engboundary8sects1km.tif")
    
