@@ -154,7 +154,7 @@ bpt$sector2<-factor(bpt$cutangle,labels=c(
    #########save data####
    
    bpt$sector<- bpt$sector2
-   write.csv(bpt[,1:6],"england.4directions.csv")
+   write.csv(bpt[,1:6],"spatial_data/derived/england.4directions.csv")
    sectors<- rasterize(bpt[,c(1,2)],loregionb,field=as.numeric(bpt[,5]))
    #numbered 1-8, would not accept factor so labels lost
    

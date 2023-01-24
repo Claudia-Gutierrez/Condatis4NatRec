@@ -1,10 +1,10 @@
 ################################################
 #                                              #
-#                Condatis Function             #
+#           Condatis heathland test            #
 #                                              #
 ################################################
-##Author(s): Jenny Hodgson, Thomas Travers
-##Shared by Thomas Travers (March 2022) 
+
+##Condatis run with the function shared by Thomas Travers (March 2022) in the script "Condatis_function_TTravers.R" 
 
 # The function needs the following inputs:
 
@@ -13,6 +13,14 @@
 # R - R value of the species moving (number of movers produced per km^2 of habitat)
 # powerthresh - value between 0 and 1, used to define what a bottleneck is ( selects bottlenecks that account for x proportion of the total power in the network)
 # disp - Dispersal value of the species in km 
+
+library(raster)
+library(sf)
+library(rgdal)
+library(dplyr)
+library(maptools)
+library (sp)
+
 
 Condatis <- function(hab, st, R, powerthresh, disp){
   
@@ -148,8 +156,8 @@ Condatis <- function(hab, st, R, powerthresh, disp){
   names(powpoints) <- c('xm', 'ym', 'label', 'type')
   
   #clean up to save memory - if sure no longer needed
-  rm(Cfree)
-  rm(powr)
+  #rm(Cfree)
+ # rm(powr)
   gc()
   
   #### create shapefile of the location of the top bottlenecks ####
@@ -168,13 +176,38 @@ Condatis <- function(hab, st, R, powerthresh, disp){
     paste0(unlist(noms)))
   
   
-  joined = SpatialLines(lapply(listlines, function(x){x@lines[[1]]}))
-  proj4string(joined) <- as.character(crs(r))
+  joined = SpatialLines(lapply(listlines, function(x){x@lines[[1]]}), proj4string = crs(amap))
+#  proj4string(joined) <- as.character(crs(r))
   
   jdata = SpatialLinesDataFrame(joined, data.frame(id = names(joined), power = unlist(lapply(listpows, function(x) x[1,5]))), FALSE)
- 
+  
   # Retunr results #
   results <- list(f, r_f, f_shp, r_p, power, jdata)
   names(results) <- c('flow', 'flow_raster', 'flow_shp', 'progress_raster', 'power', 'bottlenecks')
   return(results)
 }
+
+
+
+#########
+hab<-raster("spatial_data/derived/Nat_1km_heathland.tif")
+st<- raster("spatial_data/derived/st_N_S.tif")
+R<- 1000
+powerthresh<-0.9
+disp<- 2
+
+Nat_heathland_ConNS<- Condatis(hab=hab, st=st,R=R,powerthresh=powerthresh, disp=disp)
+
+#save results 
+write.csv(f,"spatial_data/derived/Nat_1k_heathland_flow.csv")
+write.csv(power,"spatial_data/derived/Nat_1k_heathland_power.csv")
+writeRaster(r_f,"spatial_data/derived/Nat_1k_heathland_flow_raster.tif")
+writeRaster(r_p,"spatial_data/derived/Nat_1k_heathland_progress_raster.tif")
+st_write(f_shp, "spatial_data/derived/Nat_1k_heathland_flow.shp")
+st_write(jdata, "spatial_data/derived/Nat_1k_heathland_bottlenecks.shp")
+
+writeOGR(jdata, dsn="spatial_data/derived/" ,layer="bottlenecks", driver="ESRI Shapefile")
+
+crs(jdata)<- "EPSG:27700"
+
+
