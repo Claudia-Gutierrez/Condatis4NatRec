@@ -14,14 +14,6 @@
 # powerthresh - value between 0 and 1, used to define what a bottleneck is ( selects bottlenecks that account for x proportion of the total power in the network)
 # disp - Dispersal value of the species in km 
 
-library(raster)
-library(sf)
-library(rgdal)
-library(dplyr)
-library(maptools)
-library (sp)
-
-
 Condatis <- function(hab, st, R, powerthresh, disp){
   
   library(raster)
@@ -177,7 +169,8 @@ Condatis <- function(hab, st, R, powerthresh, disp){
   
   
   joined = SpatialLines(lapply(listlines, function(x){x@lines[[1]]}), proj4string = crs(amap))
-#  proj4string(joined) <- as.character(crs(r))
+plot(jdata)
+  #  proj4string(joined) <- as.character(crs(r))
   
   jdata = SpatialLinesDataFrame(joined, data.frame(id = names(joined), power = unlist(lapply(listpows, function(x) x[1,5]))), FALSE)
   
@@ -193,7 +186,7 @@ Condatis <- function(hab, st, R, powerthresh, disp){
 hab<-raster("spatial_data/derived/Nat_1km_heathland.tif")
 st<- raster("spatial_data/derived/st_N_S.tif")
 R<- 1000
-powerthresh<-0.9
+powerthresh<-0.80
 disp<- 2
 
 Nat_heathland_ConNS<- Condatis(hab=hab, st=st,R=R,powerthresh=powerthresh, disp=disp)
@@ -204,10 +197,7 @@ write.csv(power,"spatial_data/derived/Nat_1k_heathland_power.csv")
 writeRaster(r_f,"spatial_data/derived/Nat_1k_heathland_flow_raster.tif")
 writeRaster(r_p,"spatial_data/derived/Nat_1k_heathland_progress_raster.tif")
 st_write(f_shp, "spatial_data/derived/Nat_1k_heathland_flow.shp")
-st_write(jdata, "spatial_data/derived/Nat_1k_heathland_bottlenecks.shp")
+writeOGR(jdata, dsn="spatial_data/derived" ,layer="bottlenecks", driver="ESRI Shapefile")
 
-writeOGR(jdata, dsn="spatial_data/derived/" ,layer="bottlenecks", driver="ESRI Shapefile")
-
-crs(jdata)<- "EPSG:27700"
 
 
