@@ -88,8 +88,10 @@ Condatis <- function(hab, st, R, powerthresh, disp){
                               outer(apt[, 'y'], target[, 'y'], '-')^2)))
   M0 <- diag(Cin + Cout + rowSums(Cfree)) - Cfree
   w <- Cin - Cout
-  v0 <- solve(M0, w, tol = exp(-256)) # This produces the resistance values in the network and is where errors will most likely occur, see 'try' function for error handling
+
+  v0 <- solve(M0, w, tol = exp(-255)) # This produces the resistance values in the network and is where errors will most likely occur, see 'try' function for error handling
   
+ 
   I0 <- (v0 + 1) * Cout
   I1 <- (1 - v0) * Cin
   
@@ -114,7 +116,7 @@ Condatis <- function(hab, st, R, powerthresh, disp){
   
   # Create a raster of standardised flow and the 'progress' statistic (can be skipped if not needed)
   r <- raster(extent(amap), res = xres(amap), crs = crs(f_shp))
-  r_f <- rasterize(f_shp, r, field = 'std_flow')
+  r_f <- rasterize(f_shp, r, field = 'flow')
   r_p <- rasterize(f_shp, r, field = 'progress')
   
   ## Power calculations - for bottlenecks ##
@@ -127,10 +129,12 @@ Condatis <- function(hab, st, R, powerthresh, disp){
     powr=c(powr[upper.tri(powr)])
   )
   
-  
+ 
   powlong <- powlong[order(-powlong$powr), ]#sorting the data frame so highest power comes first
-  sumpow <- sum(powlong$powr)
+  sumpow <- sum(powlong$powr)#total power 
   powlong$thresh <- cumsum(powlong$powr)/sumpow 
+  
+ 
   
   # subset the power scores by the powerthreshold you have set
   if (nrow(subset(powlong, powlong$thresh <= powerthresh)) == 0){
@@ -141,8 +145,12 @@ Condatis <- function(hab, st, R, powerthresh, disp){
     powlong <- subset(powlong, powlong$thresh <= powerthresh)
   }
   
-  #create dataframe of power scores and location of ends of the bottleneck for later
   powlong$label <- paste(powlong$a, powlong$b, sep = '_')
+  
+  powlong$perc<-powlong$powr/sumpow #percentage of total    
+  
+  #create dataframe of power scores and location of ends of the bottleneck for later
+
   powpoints <- cbind(apt[powlong$a, c('xm', 'ym')], powlong[,c('label')], type = 'a')
   powpoints <- rbind(powpoints, cbind(apt[powlong$b, c('xm', 'ym')], powlong[, c('label')], type = 'b'))
   names(powpoints) <- c('xm', 'ym', 'label', 'type')
@@ -154,11 +162,11 @@ Condatis <- function(hab, st, R, powerthresh, disp){
   
   #### create shapefile of the location of the top bottlenecks ####
   
-  powers <- powlong[,c(3,5)]
+  powers <- powlong[,c(3,5,6)]
   pow <- full_join(powpoints, powers, by = 'label')
-  
-  power <- left_join(subset(pow, type == 'b')[,-c(4,5)], subset(pow,type == 'a')[,-4], by = 'label')[,c(1,2,4,5,3,6)]
-  names(power) <- c('x1', 'y1','x2', 'y2', 'label', 'power') 
+
+  power <- left_join(subset(pow, type == 'b')[,-c(4,5)], subset(pow,type == 'a')[,-4], by = 'label')[,c(1,2,5,6,3,7,4)]
+  names(power) <- c('x1', 'y1','x2', 'y2', 'label', 'power','perc') 
   
   listpows <- split(pow, f = pow$label)
   
@@ -169,9 +177,7 @@ Condatis <- function(hab, st, R, powerthresh, disp){
   
   
   joined = SpatialLines(lapply(listlines, function(x){x@lines[[1]]}), proj4string = crs(amap))
-plot(jdata)
-  #  proj4string(joined) <- as.character(crs(r))
-  
+
   jdata = SpatialLinesDataFrame(joined, data.frame(id = names(joined), power = unlist(lapply(listpows, function(x) x[1,5]))), FALSE)
   
   # Retunr results #
@@ -183,21 +189,28 @@ plot(jdata)
 
 
 #########
+library(raster)
+library(sf)
+library(rgdal)
+library(dplyr)
+library(maptools)
+
 hab<-raster("spatial_data/derived/Nat_1km_heathland.tif")
 st<- raster("spatial_data/derived/st_N_S.tif")
 R<- 1000
-powerthresh<-0.80
-disp<- 2
+powerthresh<-0.999
+disp<- 5
 
 Nat_heathland_ConNS<- Condatis(hab=hab, st=st,R=R,powerthresh=powerthresh, disp=disp)
 
 #save results 
 write.csv(f,"spatial_data/derived/Nat_1k_heathland_flow.csv")
-write.csv(power,"spatial_data/derived/Nat_1k_heathland_power.csv")
-writeRaster(r_f,"spatial_data/derived/Nat_1k_heathland_flow_raster.tif")
-writeRaster(r_p,"spatial_data/derived/Nat_1k_heathland_progress_raster.tif")
-st_write(f_shp, "spatial_data/derived/Nat_1k_heathland_flow.shp")
-writeOGR(jdata, dsn="spatial_data/derived" ,layer="bottlenecks", driver="ESRI Shapefile")
+write.csv(power,"spatial_data/derived/Nat_1k_heathland_power5k.csv")
+writeRaster(r_f,"spatial_data/derived/Nat_1k_heathland_flow_raster5k.tif",overwrite=TRUE)
+writeRaster(r_p,"spatial_data/derived/Nat_1k_heathland_progress_raster5k.tif")
+st_write(f_shp, "spatial_data/derived/Nat_1k_heathland_flow5k.shp")
+writeOGR(jdata, dsn="spatial_data/derived" ,layer="Nat_1k_heathland_bottlenecks5k", driver="ESRI Shapefile",overwrite_layer=TRUE)
+
 
 
 

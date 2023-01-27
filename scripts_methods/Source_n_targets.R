@@ -21,7 +21,8 @@ writeRaster(st_N_S,"spatial_data/derived/st_N_S.tif", overwrite=TRUE)
 st_E_W<-boundaries
 st_E_W[st_E_W %in% 1|st_E_W %in% 3:5|st_E_W %in% 7:8]<- NA
 st_E_W[st_E_W %in% 6]<-1
-#plot(st_E_W, col= c("red","black"))
+st_E_W[st_E_W %in% 2]<-2
+plot(st_E_W, col= c("red","black"))
 
 writeRaster(st_E_W,"spatial_data/derived/st_E_W.tif",overwrite=TRUE)
 
