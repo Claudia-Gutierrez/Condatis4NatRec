@@ -1,12 +1,12 @@
 ################################################
 #                                              #
-#          Condatis bottlenecks function       #
+#   Condatis bottlenecks function outputs      #
 #                                              #
 ################################################
 
 # Modified from the function shared by Thomas Travers (March 2022) in the script "Condatis_function_TTravers.R" 
 
-#This function calculates conductance, flow, percent of total power for each bottleneck  and subsets the bottlenecks that account for 99% of the power (or a minimum of 1,000 and a maximum of 10,000 of the highest ranked powers)
+#This function calculates conductance, flow, percent of total power for each bottleneck  and subsets the bottlenecks that account for a given percentage (threshold) of the power (or a minimum of 10 and a maximum of 10,000 of the highest ranked powers)
 
 # The function needs the following inputs:
 
@@ -14,15 +14,24 @@
 # st - raster of location of sources and targets
 # R - R value of the species moving (number of movers produced per km^2 of habitat)
 # disp - Dispersal value of the species in km 
+# filename- name of the file without file format 
+# dsn- path of the folder to save the outputs (add "/" after the folder name)
+
+#The outputs of this function are:
+# 1. a csv with the Speed value and the total power value
+# 2. a csv file with the flow per cell
+# 3. a csv file with the power of each bottleneck (threshold subset)
+# 4. a raster file with the flow
+# 5. a raster file with the progress
 
 
-Condatis_bottlenecks_output<- function(hab, st, R, disp, filename, dsn){
-  
+Condatis_bottlenecks_outputs<- function(hab, st, R, disp, filename, dsn, threshold=0.9, maxlink=10000, minlink=10){
   library(raster)
   library(sf)
   library(rgdal)
   library(dplyr)
   library(maptools)
+  library(sfheaders)
   
   smart.round <- function(x) { #this function rounds numeric to integer while preserving their sum 
     y <- floor(x)
@@ -117,13 +126,13 @@ Condatis_bottlenecks_output<- function(hab, st, R, disp, filename, dsn){
     st_buffer(dist = (xres(amap)/2), endCapStyle = 'SQUARE')
   
   # Create a raster of standardised flow and the 'progress' statistic (can be skipped if not needed)
-  r <- raster(extent(amap), res = xres(amap), crs = crs(f_shp))
+  r <- raster(extent(amap), res = xres(amap), crs = crs(amap))
   r_f <- rasterize(f_shp, r, field = 'flow')
   r_p <- rasterize(f_shp, r, field = 'progress')
   
   ## Power calculations - for bottlenecks ##
   
-  powr <- Cfree * outer(v0, v0, '-')^2
+  powr <- Cfree * (outer(v0, v0, '-')/2)^2 #divide by 2 to get same units again 
   
   powlong <- data.frame(
     a = c(matrix(1:len, nrow = len, ncol = len)[upper.tri(powr)]),
@@ -136,31 +145,36 @@ Condatis_bottlenecks_output<- function(hab, st, R, disp, filename, dsn){
   powlong$thresh <- cumsum(powlong$powr)/sumpow 
   
   
-  # subset the power scores that account for 99% of the flow with a minimum of 1,000 and a maximum of 10,000 of the highest powers
-  if (nrow(subset(powlong, powlong$thresh <= 0.99)) == 0){
-    powlong <- powlong[1:5,]
-  } else if (nrow(subset(powlong, powlong$thresh <= 0.99)) < 1000) {
-    powlong <- powlong[1:1000,] 
-  } else if (nrow(subset(powlong,powlong$thresh>=0.99))>1000){
-    powlong <- subset(powlong, powlong$thresh <= 0.99)
-  } 
+  # subset the power scores that account for threshold of the flow with a minimum of minlink and a maximum of maxlink of the highest powers
+  upto <- 1+nrow(subset(powlong, powlong$thresh <= threshold))
   
-  if (nrow(powlong)>10000){
-    powlong <- powlong[1:10000,]
+  if ( upto < minlink){
+    powlong <- powlong[1:minlink,]
+  } else {if (upto > maxlink) {
+    powlong <- powlong[1:maxlink,] 
+    
   } else{
-    powlong<-powlong
-  }
+    powlong<-powlong[1:upto,]
+  }}
   
   
   powlong$label <- paste(powlong$a, powlong$b, sep = '_')
   
-  powlong$perc<-powlong$powr/sumpow #percentage of total    
+  powlong$perc<-powlong$powr/sumpow*100 #percentage of total    
   
-  #create dataframe of power scores and location of ends of the bottleneck for later
+  #create dataframes of power scores and location of ends of the bottleneck
   
-  powpoints <- cbind(apt[powlong$a, c('xm', 'ym')], powlong[,c('label')], type = 'a')
-  powpoints <- rbind(powpoints, cbind(apt[powlong$b, c('xm', 'ym')], powlong[, c('label')], type = 'b'))
-  names(powpoints) <- c('xm', 'ym', 'label', 'type')
+  powpoints <- cbind(apt[powlong$a, c('xm', 'ym')], powlong[,c('label','powr','perc')], type = 'a')
+  #powpoints is to convert to line geometries, 2 rows per bottleneck
+  #power is one row per bottleneck - to continue analysis in R
+  power<- powpoints[,c('xm', 'ym','label','powr','perc')] 
+  names(power)<-c('xma', 'yma','label','powr','perc')
+  power<- cbind(power,apt[powlong$b, c('xm', 'ym')])
+  names(power)<-c('xma', 'yma','label','powr','perc','xmb','ymb')
+  
+  
+  powpoints <- rbind(powpoints, cbind(apt[powlong$b, c('xm', 'ym')], powlong[, c('label','powr','perc')], type = 'b'))
+  names(powpoints) <- c('xm', 'ym', 'label', 'power','perc','type')
   
   #clean up to save memory - if sure no longer needed
   rm(Cfree)
@@ -169,34 +183,36 @@ Condatis_bottlenecks_output<- function(hab, st, R, disp, filename, dsn){
   
   #### create shapefile of the location of the top bottlenecks ####
   
-  powers <- powlong[,c(3,5,6)]
-  pow <- full_join(powpoints, powers, by = 'label')
+  powpoints<- powpoints[order(powpoints$label),] 
   
-  power <- left_join(subset(pow, type == 'b')[,-c(4,5)], subset(pow,type == 'a')[,-4], by = 'label')[,c(1,2,5,6,3,7,4)]
-  names(power) <- c('x1', 'y1','x2', 'y2', 'label', 'power','perc') 
+  lineobj<- sf_linestring(# I think this would be the new sf way of creating geometries - to be checked
+    obj = powpoints,
+    x = 'xm',
+    y = 'ym',
+    z = NULL,
+    m = NULL,
+    linestring_id = 'label',
+    keep = TRUE)
   
-  listpows <- split(pow, f = pow$label)
+  lineobj<-subset(lineobj, select = -c(type))
   
-  noms <- names(listpows)
+  #assign spatial reference to bottlenecks
+  st_crs(lineobj)<-crs(amap)
   
-  listlines <- setNames(lapply(listpows, function(x)
-    SpatialLines(list(Lines(list(Line(x[, c(1,2)])), ID = unique(x$label))))),
-    paste0(unlist(noms, power$perc)))
+  speed_power<- as.data.frame(cbind(cond, sumpow))
+  names(speed_power)<-c('Speed', 'Total power')
   
-  
-  joined = SpatialLines(lapply(listlines, function(x){x@lines[[1]]}), proj4string = crs(amap))
-  
-  jdata = SpatialLinesDataFrame(joined, data.frame(id = names(joined), power = unlist(lapply(listpows, function(x) x[1,5]))), FALSE)
-  jdata@data$perc<-jdata@data$power/sumpow #add percentage of total
-  
-  dsn= dsn
-  
+  write.csv(speed_power, paste0(dsn,filename,'speed_power.csv'))
   write.csv(f, paste0(dsn,filename,'flow.csv'))
-  write.csv(power, paste0(dsn,'/',filename,'power.csv'))
-  writeRaster(r_f,paste0(dsn,'/', filename,'flow_raster.tif'),overwrite=TRUE)
-  writeRaster(r_p,paste0(dsn,'/',filename,'progress_raster.tif'),overwrite=TRUE)
-  st_write(f_shp, paste0(dsn,'/', filename,'flow.shp'), append = FALSE)
-  writeOGR(jdata, dsn="spatial_data/derived" ,layer=paste0(filename,'bottlenecks'), driver="ESRI Shapefile",overwrite_layer=TRUE)
+  write.csv(power, paste0(dsn,filename,'power.csv'))
+  writeRaster(r_f,paste0(dsn,filename,'flow_raster.tif'),overwrite=TRUE)
+  writeRaster(r_p,paste0(dsn,filename,'progress_raster.tif'),overwrite=TRUE)
+  st_write(lineobj, paste0(dsn,filename,'bottlenecks.shp'), append = FALSE)
+  
+  results <- list(cond, sumpow,f, r_f, f_shp, r_p, power, lineobj)
+  names(results) <- c('conductance', 'powersum','flow', 'flow_raster', 'flow_shp', 'progress_raster', 'power', 'bottlenecks')
+  
+  return(results)
   
 }
 

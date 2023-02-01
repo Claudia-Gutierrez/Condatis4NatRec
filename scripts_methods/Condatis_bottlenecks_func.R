@@ -3,10 +3,9 @@
 #          Condatis bottlenecks function       #
 #                                              #
 ################################################
+#Authors: Jenny Hodgson and Thomas Travers (February 2023)
 
-# Modified from the function shared by Thomas Travers (March 2022) in the script "Condatis_function_TTravers.R" 
-
-#This function calculates conductance, flow, percent of total power for each bottleneck  and subsets the bottlenecks that account for 99% of the power (or a minimum of 1,000 and a maximum of 10,000 of the highest ranked powers)
+#This function calculates conductance, flow, percent of total power for each bottleneck  and subsets the bottlenecks that account for a given percentage (threshold) of the power (or a minimum of 10 and a maximum of 10,000 of the highest ranked powers)
 
 # The function needs the following inputs:
 
@@ -16,7 +15,7 @@
 # disp - Dispersal value of the species in km 
 
 
-Condatis_bottlenecks<- function(hab, st, R, disp, threshold=0.9,maxlink=10000,minlink=10){
+Condatis_bottlenecks<- function(hab, st, R, disp, threshold=0.9, maxlink=10000, minlink=10){
   
   library(raster)
   library(sf)
@@ -166,7 +165,7 @@ Condatis_bottlenecks<- function(hab, st, R, disp, threshold=0.9,maxlink=10000,mi
   
                 
   powpoints <- rbind(powpoints, cbind(apt[powlong$b, c('xm', 'ym')], powlong[, c('label','powr','perc')], type = 'b'))
-  names(powpoints) <- c('xm', 'ym', 'label', 'type')
+  names(powpoints) <- c('xm', 'ym', 'label', 'power','perc','type')
   
   #clean up to save memory - if sure no longer needed
   rm(Cfree)
@@ -174,6 +173,8 @@ Condatis_bottlenecks<- function(hab, st, R, disp, threshold=0.9,maxlink=10000,mi
   gc()
   
   #### create shapefile of the location of the top bottlenecks ####
+
+  powpoints<- powpoints[order(powpoints$label),] 
   
   lineobj<- sf_linestring(# I think this would be the new sf way of creating geometries - to be checked
     obj = powpoints,
@@ -184,33 +185,14 @@ Condatis_bottlenecks<- function(hab, st, R, disp, threshold=0.9,maxlink=10000,mi
     linestring_id = 'label',
     keep = TRUE)
   
-  #CHECK THAT THE COLUMNS POWR AND PERC ARE RETAINED
-  #I THINK THE REST OF TOM'S CODE FOR GIS CONVERSION IS NOT NEEDED
-  #ALTHOUGH CRS MAY NEED TO BE SET
+  lineobj<-subset(lineobj, select = -c(type))
   
- # powers <- powlong[,c(3,5,6)]
- # pow <- full_join(powpoints, powers, by = 'label')
+  #assign spatial reference to bottlenecks
+  st_crs(lineobj)<-crs(amap)
   
- # power <- left_join(subset(pow, type == 'b')[,-c(4,5)], subset(pow,type == 'a')[,-4], by = 'label')[,c(1,2,5,6,3,7,4)]
- # names(power) <- c('x1', 'y1','x2', 'y2', 'label', 'power','perc') 
-  
- # listpows <- split(pow, f = pow$label)
-  
- # noms <- names(listpows)
-  
-  #listlines <- setNames(lapply(listpows, function(x)
- #   SpatialLines(list(Lines(list(Line(x[, c(1,2)])), ID = unique(x$label))))),
-  #  paste0(unlist(noms, power$perc)))
-  
-  
- # joined = SpatialLines(lapply(listlines, function(x){x@lines[[1]]}), proj4string = crs(amap))
-  
- # jdata = SpatialLinesDataFrame(joined, data.frame(id = names(joined), power = unlist(lapply(listpows, function(x) x[1,5]))), FALSE)
- # jdata@data$perc<-jdata@data$power/sumpow #add percentage of total
-  
-  # Return results #
   results <- list(cond, sumpow,f, r_f, f_shp, r_p, power, lineobj)
   names(results) <- c('conductance', 'powersum','flow', 'flow_raster', 'flow_shp', 'progress_raster', 'power', 'bottlenecks')
+  
   return(results)
 }
 

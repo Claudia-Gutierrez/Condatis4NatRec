@@ -10,14 +10,14 @@ library(rgdal)
 library(dplyr)
 library(maptools)
 
-#Condatis inputs (hab, R, disp, st, filename)
+#Condatis inputs (hab, R, disp, st, filename, dsn)
 
 hab<-raster("spatial_data/derived/Nat_1km_heathland.tif")
 R<- 1000
 disp<- 3.4
 
 #Direction North-South
-stNS<- raster("spatial_data/derived/st_N_S.tif")
+st<- raster("spatial_data/derived/st_N_S.tif")
 
 ######################
 #Output file nomenclature (with underscores instead of spaces):
@@ -28,13 +28,14 @@ stNS<- raster("spatial_data/derived/st_N_S.tif")
 # 5.Direction (NS or EW or NWSE or NESW)
 #Condatis output type will be appended at the end
 ######################
-filename<-'Nat_1k_heathland_3k_NS_t_'
+filename<-'Nat_1k_heathland_3k_NS_'
 
-#assign output directory
-dsn<-'spatial_data/derived'
+#assign output directory path
+dsn<-'spatial_data/derived/'
 
 #Run Condatis with outputs
-Nat_heathland_ConNS<- Condatis_bottlenecks_output(hab=hab, st=stNS,R=R,disp=disp, filename = filename, dsn=dsn)
+Nat_heathland_ConNS<- Condatis_bottlenecks_outputs(hab=hab, st=st,R=R,disp=disp, filename = filename, dsn=dsn)
+
 
 
 
