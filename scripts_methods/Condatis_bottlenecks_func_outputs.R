@@ -25,7 +25,7 @@
 # 5. a raster file with the progress
 
 
-Condatis_bottlenecks_outputs<- function(hab, st, R, disp, filename, dsn, threshold=0.9, maxlink=10000, minlink=10){
+Condatis_bottlenecks_outputs<- function(hab, st, R, disp, filename, dsn, threshold=0.99, maxlink=10000, minlink=1000){
   library(raster)
   library(sf)
   library(rgdal)
@@ -160,21 +160,25 @@ Condatis_bottlenecks_outputs<- function(hab, st, R, disp, filename, dsn, thresho
   
   powlong$label <- paste(powlong$a, powlong$b, sep = '_')
   
-  powlong$perc<-powlong$powr/sumpow*100 #percentage of total    
+  powlong$perc<-powlong$powr/sumpow*100 #percentage of total
+  
+  powlong$cumsum<-cumsum(powlong$powr) #power cumulative sum
+  powlong$cumsum_perc<-powlong$thresh*100#power cumulative sum percentage
   
   #create dataframes of power scores and location of ends of the bottleneck
   
-  powpoints <- cbind(apt[powlong$a, c('xm', 'ym')], powlong[,c('label','powr','perc')], type = 'a')
+  powpoints <- cbind(apt[powlong$a, c('xm', 'ym')], powlong[,c('label','powr','perc', 'cumsum_perc')], type = 'a')
+  
   #powpoints is to convert to line geometries, 2 rows per bottleneck
   #power is one row per bottleneck - to continue analysis in R
-  power<- powpoints[,c('xm', 'ym','label','powr','perc')] 
-  names(power)<-c('xma', 'yma','label','powr','perc')
+  power<- powpoints[,c('xm', 'ym','label','powr','perc','cumsum_perc')] 
+  names(power)<-c('xma', 'yma','label','powr','perc','cumsum_perc')
   power<- cbind(power,apt[powlong$b, c('xm', 'ym')])
-  names(power)<-c('xma', 'yma','label','powr','perc','xmb','ymb')
+  names(power)<-c('xma', 'yma','label','powr','perc','cumsum_perc','xmb','ymb')
   
   
-  powpoints <- rbind(powpoints, cbind(apt[powlong$b, c('xm', 'ym')], powlong[, c('label','powr','perc')], type = 'b'))
-  names(powpoints) <- c('xm', 'ym', 'label', 'power','perc','type')
+  powpoints <- rbind(powpoints, cbind(apt[powlong$b, c('xm', 'ym')], powlong[, c('label','powr','perc','cumsum_perc')], type = 'b'))
+  names(powpoints) <- c('xm', 'ym', 'label', 'power','perc','cumsum_perc','type')
   
   #clean up to save memory - if sure no longer needed
   rm(Cfree)
@@ -195,6 +199,7 @@ Condatis_bottlenecks_outputs<- function(hab, st, R, disp, filename, dsn, thresho
     keep = TRUE)
   
   lineobj<-subset(lineobj, select = -c(type))
+  lineobj$length<-st_length(lineobj)# calculate bottleneck length (units defined by coordinate reference system, here meters)
   
   #assign spatial reference to bottlenecks
   st_crs(lineobj)<-crs(amap)
