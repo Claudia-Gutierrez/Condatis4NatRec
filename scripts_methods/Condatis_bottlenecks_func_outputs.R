@@ -210,9 +210,21 @@ Condatis_bottlenecks_outputs<- function(hab, st, R, disp, filename, dsn, thresho
   write.csv(speed_power, paste0(dsn,filename,'speed_power.csv'))
   write.csv(f, paste0(dsn,filename,'flow.csv'))
   write.csv(power, paste0(dsn,filename,'power.csv'))
+  
   writeRaster(r_f,paste0(dsn,filename,'flow_raster.tif'),overwrite=TRUE)
+  flowr<-raster(paste0(dsn,filename,'flow_raster.tif'))
+  crs(flowr)<-"EPSG:27700"
+  writeRaster(flowr,paste0(dsn,filename,'flow_raster.tif'),overwrite=TRUE)
+  
   writeRaster(r_p,paste0(dsn,filename,'progress_raster.tif'),overwrite=TRUE)
+  progr<-raster(paste0(dsn,filename,'progress_raster.tif'))
+  crs(progr)<-"EPSG:27700"
+  writeRaster(progr,paste0(dsn,filename,'progress_raster.tif'))
+  
   st_write(lineobj, paste0(dsn,filename,'bottlenecks.shp'), append = FALSE)
+  bottle<-st_read(paste0(dsn,filename,'bottlenecks.shp'))
+  st_crs(bottle)<-crs(amap)
+  st_write(bottle, paste0(dsn,filename,'bottlenecks.shp'), append = FALSE)
   
   results <- list(cond, sumpow,f, r_f, f_shp, r_p, power, lineobj)
   names(results) <- c('conductance', 'powersum','flow', 'flow_raster', 'flow_shp', 'progress_raster', 'power', 'bottlenecks')
