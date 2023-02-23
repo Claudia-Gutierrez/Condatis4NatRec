@@ -14,8 +14,7 @@
 # R - R value of the species moving (number of movers produced per km^2 of habitat)
 # disp - Dispersal value of the species in km 
 
-
-Condatis_bottlenecks<- function(hab, st, R, disp, threshold=0.9, maxlink=10000, minlink=10){
+Condatis_bottlenecks<- function(hab, st, R, disp,filename,dsn, threshold=0.9, maxlink=10000, minlink=10, maxdisp=Inf){
   
   library(raster)
   library(sf)
@@ -62,10 +61,15 @@ Condatis_bottlenecks<- function(hab, st, R, disp, threshold=0.9, maxlink=10000, 
   st$x <- st$xm/scaler
   st$y <- st$ym/scaler
   
+
   #Get the distances between each cell of habitat and every other cell
   len<-dim(apt)[1]
   dm <- dist(apt[, c('x','y')])
-  
+
+  if(maxdisp!=Inf){
+    dm[dm<=maxdisp]<-0
+  }
+
   #Get x and y coordinates for sources and targets
   origin <- st[st$label == 1, c('x','y')]
   target <- st[st$label == 2, c('x','y')]
@@ -194,6 +198,16 @@ Condatis_bottlenecks<- function(hab, st, R, disp, threshold=0.9, maxlink=10000, 
   
   #assign spatial reference to bottlenecks
   st_crs(lineobj)<-crs(amap)
+  
+  speed_power<- as.data.frame(cbind(cond, sumpow))
+  names(speed_power)<-c('Speed', 'Total power')
+  
+  write.csv(speed_power, paste0(dsn,filename,'speed_power.csv'))
+  write.csv(f, paste0(dsn,filename,'flow.csv'))
+  write.csv(power, paste0(dsn,filename,'power.csv'))
+  writeRaster(r_f,paste0(dsn,filename,'flow_raster.tif'),overwrite=TRUE)
+  writeRaster(r_p,paste0(dsn,filename,'progress_raster.tif'),overwrite=TRUE)
+  st_write(lineobj, paste0(dsn,filename,'bottlenecks.shp'), append = FALSE)
   
   results <- list(cond, sumpow,f, r_f, f_shp, r_p, power, lineobj)
   names(results) <- c('conductance', 'powersum','flow', 'flow_raster', 'flow_shp', 'progress_raster', 'power', 'bottlenecks')
