@@ -12,7 +12,7 @@
 # - lcm: reference land cover map in raster format (e.g.,national heathland map ) 
 # - region: raster of the region of interest
 
-localextent<-function(lcm, regionfname=NA,align=10000,workresn=NA){
+localextent<-function(lcm, region=NA,align=10000,workresn=NA){
   
   resn<-mean(res(lcm))
   if(identical(workresn,NA)){
