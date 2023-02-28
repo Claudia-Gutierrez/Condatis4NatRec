@@ -14,7 +14,7 @@
 # R - R value of the species moving (number of movers produced per km^2 of habitat)
 # disp - Dispersal value of the species in km 
 
-Condatis_bottlenecks<- function(hab, st, R, disp,filename,dsn, threshold=0.9, maxlink=10000, minlink=10, maxdisp=Inf){
+Condatis_bottlenecks<- function(hab, st, R, disp,filename,dsn, threshold=0.99, maxlink=10000, minlink=10, maxdisp=Inf){
   
   library(raster)
   library(sf)
@@ -66,10 +66,6 @@ Condatis_bottlenecks<- function(hab, st, R, disp,filename,dsn, threshold=0.9, ma
   len<-dim(apt)[1]
   dm <- dist(apt[, c('x','y')])
 
-  if(maxdisp!=Inf){
-    dm[dm<=maxdisp]<-0
-  }
-
   #Get x and y coordinates for sources and targets
   origin <- st[st$label == 1, c('x','y')]
   target <- st[st$label == 2, c('x','y')]
@@ -78,11 +74,17 @@ Condatis_bottlenecks<- function(hab, st, R, disp,filename,dsn, threshold=0.9, ma
   alpha <- 2/disp
   norm <- R*alpha^2/2/pi*cellside^4 
   
+  hist(dm)
+  
   #### Core Condatis Calculations ####
   
   #Current between cells
   Cfree <- norm*outer(apt$cover, apt$cover, '*')*exp(-alpha*as.matrix(dm))
   diag(Cfree) <- 0
+  
+  if(maxdisp!=Inf){
+    Cfree[as.matrix(dm)>=maxdisp] <- 0
+  }
   
   #Current into a cell and out of a cell
   Cin <- norm*apt$cover*
@@ -202,12 +204,12 @@ Condatis_bottlenecks<- function(hab, st, R, disp,filename,dsn, threshold=0.9, ma
   speed_power<- as.data.frame(cbind(cond, sumpow))
   names(speed_power)<-c('Speed', 'Total power')
   
-  write.csv(speed_power, paste0(dsn,filename,'speed_power.csv'))
-  write.csv(f, paste0(dsn,filename,'flow.csv'))
-  write.csv(power, paste0(dsn,filename,'power.csv'))
-  writeRaster(r_f,paste0(dsn,filename,'flow_raster.tif'),overwrite=TRUE)
-  writeRaster(r_p,paste0(dsn,filename,'progress_raster.tif'),overwrite=TRUE)
-  st_write(lineobj, paste0(dsn,filename,'bottlenecks.shp'), append = FALSE)
+  write.csv(speed_power, paste0(dsn,filename,'_', maxdisp,'_','speed_power.csv'))
+  write.csv(f, paste0(dsn,filename,'_', maxdisp,'_','flow.csv'))
+  write.csv(power, paste0(dsn,filename,'_', maxdisp,'_','power.csv'))
+  writeRaster(r_f,paste0(dsn,filename,'_', maxdisp,'_','flow_raster.tif'),overwrite=TRUE)
+  writeRaster(r_p,paste0(dsn,filename,'_', maxdisp,'_','progress_raster.tif'),overwrite=TRUE)
+  st_write(lineobj, paste0(dsn,filename,'_', maxdisp,'_','bottlenecks.shp'), append = FALSE)
   
   results <- list(cond, sumpow,f, r_f, f_shp, r_p, power, lineobj)
   names(results) <- c('conductance', 'powersum','flow', 'flow_raster', 'flow_shp', 'progress_raster', 'power', 'bottlenecks')

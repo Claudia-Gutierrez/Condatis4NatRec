@@ -132,11 +132,6 @@ region<-rasterize(local_bound_buf, r, 1)
 plot(region, col='red')
 
 extent(region)
-# class      : Extent 
-# xmin       : 543023 
-# xmax       : 561523 
-# ymin       : 94862.33 
-# ymax       : 108362.3 
 
 #Adjust the extent of the a given region to the next round km of the polygon
 
@@ -146,11 +141,6 @@ local_ext<-localextent(lcm, region) # raters of reference land cover map and reg
 region<-rasterize(local_bound_buf, local_ext, 1) #re-rasterize with new extent 
 
 extent(region)
-# class      : Extent 
-# xmin       : 540000 
-# xmax       : 570000 
-# ymin       : 90000 
-# ymax       : 110000 
 
 freq(region)
 # value count
