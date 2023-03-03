@@ -229,38 +229,38 @@ library(maptools)
 
 #Condatis inputs (hab, R, disp, st)
 
-hab<-raster("spatial_data/derived/Nat_1km_wetland.tif")
+hab<-raster("spatial_data/derived/national/Nat_1km_wetland.tif")
 R<- 1000
 disp<- 1
 
-dsn<-'spatial_data/derived/' #path to output files location
+dsn<-'spatial_data/derived/national/wetland/1k/' #path to output files location
 
 
 #Run Condatis_bottlenecks North-South
 filenameNS<-'Nat_1k_wetland_1k_NS_' #scale_resolution_habitat-type_dispersal-distance_direction
-stNS<- raster("spatial_data/derived/st_nat_N_S.tif")
+stNS<- raster("spatial_data/derived/national/st_nat_N_S.tif")
 
-Nat_wetland_ConNS<- Condatis_bottlenecks_outputs(hab=hab, st=stNS,R=R,disp=disp, filename =filenameNS, dsn=dsn )
+Nat_wetland_ConNS<- Condatis_bottlenecks(hab=hab, st=stNS,R=R,disp=disp, filename =filenameNS, dsn=dsn)
 
 
 #Run Condatis_bottlenecks East-West
 filenameEW<-'Nat_1k_wetland_1k_EW_'
-stEW<- raster("spatial_data/derived/st_nat_E_W.tif")
+stEW<- raster("spatial_data/derived/national/st_nat_E_W.tif")
 
-Nat_wetland_ConEW<- Condatis_bottlenecks_outputs(hab=hab, st=stEW,R=R,disp=disp, filename =filenameEW, dsn=dsn)
+Nat_wetland_ConEW<- Condatis_bottlenecks(hab=hab, st=stEW,R=R,disp=disp, filename =filenameEW, dsn=dsn)
 
 
 #Run Condatis_bottlenecks Northeast-Southwest
 filenameNESW<-'Nat_1k_wetland_1k_NESW_'
-stNESW<- raster("spatial_data/derived/st_nat_NE_SW.tif")
+stNESW<- raster("spatial_data/derived/national/st_nat_NE_SW.tif")
 
-Nat_wetland_ConNESW<- Condatis_bottlenecks_outputs(hab=hab, st=stNESW,R=R,disp=disp, filename =filenameNESW, dsn=dsn)
+Nat_wetland_ConNESW<- Condatis_bottlenecks(hab=hab, st=stNESW,R=R,disp=disp, filename =filenameNESW, dsn=dsn)
 
 #Run Condatis_bottlenecks Northwest-Southeast
 filenameNWSE<-'Nat_1k_wetland_1k_NWSE_'
-stNWSE<- raster("spatial_data/derived/st_nat_NW_SE.tif")
+stNWSE<- raster("spatial_data/derived/national/st_nat_NW_SE.tif")
 
-Nat_wetland_ConNWSE<- Condatis_bottlenecks_outputs(hab=hab, st=stNWSE,R=R,disp=disp, filename =filenameNWSE, dsn=dsn)
+Nat_wetland_ConNWSE<- Condatis_bottlenecks(hab=hab, st=stNWSE,R=R,disp=disp, filename =filenameNWSE, dsn=dsn)
 
 
 

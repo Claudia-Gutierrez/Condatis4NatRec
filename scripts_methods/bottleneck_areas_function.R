@@ -1,6 +1,9 @@
 
 library(sf)
 
+
+
+score_threshold<-50 #score of bottlenecks considered as a prioroty
 #read bottlenecks
 bottlenecks<- st_read('spatial_data/derived/local/Surrey/3k/Loc_250m_heathland_3k_EW_bottlenecks.shp')
 

@@ -204,12 +204,12 @@ Condatis_bottlenecks<- function(hab, st, R, disp,filename,dsn, threshold=0.99, m
   speed_power<- as.data.frame(cbind(cond, sumpow))
   names(speed_power)<-c('Speed', 'Total power')
   
-  write.csv(speed_power, paste0(dsn,filename,'_', maxdisp,'_','speed_power.csv'))
-  write.csv(f, paste0(dsn,filename,'_', maxdisp,'_','flow.csv'))
-  write.csv(power, paste0(dsn,filename,'_', maxdisp,'_','power.csv'))
-  writeRaster(r_f,paste0(dsn,filename,'_', maxdisp,'_','flow_raster.tif'),overwrite=TRUE)
-  writeRaster(r_p,paste0(dsn,filename,'_', maxdisp,'_','progress_raster.tif'),overwrite=TRUE)
-  st_write(lineobj, paste0(dsn,filename,'_', maxdisp,'_','bottlenecks.shp'), append = FALSE)
+  write.csv(speed_power, paste0(dsn,filename,'speed_power.csv'))
+  write.csv(f, paste0(dsn,filename,'flow.csv'))
+  write.csv(power, paste0(dsn,filename,'power.csv'))
+  writeRaster(r_f,paste0(dsn,filename,'flow_raster.tif'),overwrite=TRUE)
+  writeRaster(r_p,paste0(dsn,filename,'progress_raster.tif'),overwrite=TRUE)
+  st_write(lineobj, paste0(dsn,filename,'bottlenecks.shp'), append = FALSE)
   
   results <- list(cond, sumpow,f, r_f, f_shp, r_p, power, lineobj)
   names(results) <- c('conductance', 'powersum','flow', 'flow_raster', 'flow_shp', 'progress_raster', 'power', 'bottlenecks')
