@@ -37,6 +37,7 @@ bottleneck_area<-function(bottlenecks, score_major, score_severe, path,filename)
   
   b_major_buffer<-st_buffer(b_major_buffer, b_major_buffer$buf_length) #use mid-length as buffer distance
   
+  #dissolve overlapping buffers into separate polygons (units)
   b_major_units<-b_major_buffer%>%
     st_union()%>%
     st_cast('POLYGON')%>%
