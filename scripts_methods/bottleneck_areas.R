@@ -187,3 +187,56 @@ path= file.path(folder,scale, area,dispt)
 bottlenecks<- st_read(file.path(folder, scale, area, dispt, paste0(filename,'all_bottlenecks.shp')))
 
 bottleneck_area(bottlenecks, score_major, score_severe, path, filename)
+
+
+
+# Delete all bottlenecks with score<1 to share
+
+#National--------
+
+folder<- 'spatial_data/derived'
+scale<-'national'
+dispt<-'3k'
+
+
+for(habitat in c("heathland","grassland","wetland")){
+  
+  filename<- paste('Nat_1k', habitat, dispt, sep='_')
+  #read bottlenecks
+  bottlenecks<- st_read(file.path(folder,scale,habitat,dispt, paste0(filename,'_all_bottlenecks.shp')))
+  
+  #assign British National Grid spatial reference
+  bottlenecks<-bottlenecks[bottlenecks$score>1,]
+  
+  st_write(bottlenecks,file.path(folder, paste0(filename,'_bottlenecks.shp')), append = FALSE)
+}
+
+
+#Local------------
+
+folder<- 'spatial_data/derived'
+scale<-'local'
+dispt<-'1k'
+
+for(habitat in c("heathland",'grassland', 'wetland')){
+  for(area in c("Surrey","SussexKent","LostWetlands")){
+    
+    filename<- paste('Loc_250m', habitat, dispt, sep='_')
+    
+    err<-try({
+      #read bottlenecks
+      bottlenecks<-st_read(file.path(folder, scale, area, dispt, paste0(filename,'_all_bottlenecks.shp')))
+      
+    })
+    
+    if(!inherits(err,"try-error")){
+      
+      bottlenecks<-bottlenecks[bottlenecks$score>1,]
+      
+      st_write(bottlenecks,file.path(folder, paste0(filename,'_bottlenecks.shp')), append = FALSE)
+    }
+  }
+}
+
+
+

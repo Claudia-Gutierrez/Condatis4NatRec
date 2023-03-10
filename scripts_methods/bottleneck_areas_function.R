@@ -58,6 +58,9 @@ bottleneck_area<-function(bottlenecks, score_major, score_severe, path,filename)
   #remove all duplicated records, keeps only units, score sum and number of buffers per unit
   b_m_score_sum<- b_m_score_sum[!duplicated(b_m_score_sum$unit),]
   
+  #remove unnecessary information
+  b_m_score_sum<-subset(b_m_score_sum, select = -c(unit,buf_length))
+  
   #save major bottleneck area shapefile
   st_write(b_m_score_sum, paste0(path,'/', filename,'_bottleneck_major_area.shp'), append=FALSE)
   
@@ -99,6 +102,9 @@ bottleneck_area<-function(bottlenecks, score_major, score_severe, path,filename)
   
   #remove all duplicated records, keeps only units, score sum and number of buffers per unit
   b_s_score_sum<- b_s_score_sum[!duplicated(b_s_score_sum$unit),]
+  
+  #remove unnecessary information
+  b_s_score_sum<-subset(b_s_score_sum, select = -c(unit,buf_length))
   
   #save shapefile
   st_write(b_s_score_sum, paste0(path,'/', filename,'_bottleneck_severe_area.shp'), append=FALSE)
