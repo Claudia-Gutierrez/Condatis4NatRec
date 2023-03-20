@@ -23,8 +23,6 @@ area_proportion<-function(total, area){
 folder<- 'spatial_data/derived'
 scale<-'national'
 dispt<-'3k'
-habitat<-'grassland'
-type<-'severe'
 
 area_prop<-data.frame()
 for(habitat in c("grassland","heathland","wetland")){
@@ -44,11 +42,10 @@ for(habitat in c("grassland","heathland","wetland")){
     #layer ID
     area$layer<-paste0(filename,'__bottleneck_',type,'_area.shp')
     area_prop<-rbind(area_prop,area)
-    
    }
 }
   
-write.csv(area_prop, paste0(file.path(folder,scale),'/tables/bottleneck_area_nat_perc.csv'))
+write.csv(area_prop, paste0(folder,'/tables/bottleneck_area_nat_perc.csv'))
 
 #Proportion of combined networks
 #severe
@@ -88,7 +85,7 @@ plot(severe, col='red', add=TRUE)
 plot(total$geometry, add=TRUE)
 
 
-#Network expansion zones
+
 
 
 
