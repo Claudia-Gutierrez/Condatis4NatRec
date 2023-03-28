@@ -1,6 +1,6 @@
 ################################################
 #                                              #
-#              Condatis function               #
+#          Condatis bottlenecks function       #
 #                                              #
 ################################################
 #Authors: Jenny Hodgson,  Claudia Gutierrez, Thomas Travers (March 2023)
@@ -43,14 +43,21 @@
 # path - path of destination folder (add '/' to end path)
 # filename - analyses name, output type will be appended at the end (e.g. filename=landscape, output= landscape_bottlenecks.shp, landscape_flow.csv,etc.)
 
+
+
 #'@export
-condatis<- function(hab, st, R, disp, filename, path, threshold=0.99, maxlink=10000, minlink=10, maxdisp=Inf, score_major= c(5,50), score_severe= 50){
+condatis_bottlenecks<- function(hab, st, R, disp, filename, path, threshold=0.99, maxlink=10000, minlink=10, maxdisp=Inf, score_major= c(5,50), score_severe= 50){
+  
+  library(raster)
+  library(sf)
+  library(rgdal)
+  library(dplyr)
+  library(maptools)
+  library(sfheaders)
+  library(tidyverse)
 
 # Data preparation --------------------------------------------------------
 
-  hab<-terra::rast(hab)
-  st<-terra::rast(st)
-  
   smart.round <- function(x) { #this function rounds numeric to integer while preserving their sum 
     y <- floor(x)
     indices <- tail(order(x-y), round(sum(x)) - sum(y))
@@ -63,44 +70,33 @@ condatis<- function(hab, st, R, disp, filename, path, threshold=0.99, maxlink=10
   
   # Check if the habitat is in meters, and if it is make sure the cellside etc is divided by 1000
   
-  habcrs<-terra::crs(hab, proj=TRUE, describe=TRUE, parse=TRUE)
-
-  if(grepl('units=m', habcrs$proj)){
-     
-     hab<-hab
-     scaler <- 1000
+  if (grepl('units=m', hab@crs@projargs)){
+    
+    scaler <- 1000
     
   } else {
     
-    hab<-terra::project(hab,'EPSG:3857')
-    scaler <- 1000}
+    scaler <- 1
+    
+  }
   
   amap <- hab
   
   # Take the habitat raster, convert to a dataframe
-   apt <- terra::as.points(amap, values=TRUE, na.rm=TRUE)
-   aptcoord<-terra::crds(apt, df=TRUE)
-   
-   apt<-as.data.frame(apt)
-   apt<-cbind(aptcoord, apt)
-     
+  apt <- as.data.frame(raster::rasterToPoints(amap, fun = function(x){!is.na(x)}, spatial = F))
   names(apt) <- c('xm', 'ym', 'cover')
   apt <- apt[apt$cover>0,]
   apt$x <- apt$xm/scaler # Create new columns for coordinates in km #
   apt$y <- apt$ym/scaler
-  cellside <- terra::xres(amap)/scaler
+  cellside <- raster::xres(amap)/scaler
   
   #convert st raster to dataframe#
-  st <- terra::as.points(st, values=TRUE, na.rm=TRUE)
-  stcoord<-terra::crds(st, df=TRUE)
-  
-  st<-as.data.frame(st)
-  st<-cbind(stcoord, st)
-  
+  st <- as.data.frame(raster::rasterToPoints(st,fun = function(x){!is.na(x)}, spatial = F))
   names(st) <- c('xm', 'ym', 'label')
   st$x <- st$xm/scaler
   st$y <- st$ym/scaler
   
+
   #Get the distances between each cell of habitat and every other cell
   len<-dim(apt)[1]
   dm <- dist(apt[, c('x','y')])
@@ -112,7 +108,7 @@ condatis<- function(hab, st, R, disp, filename, path, threshold=0.99, maxlink=10
   # Define alpha (mean dispersal) and normalisation so the area under the dispersal kernel integrates to 1
   alpha <- 2/disp
   norm <- R*alpha^2/2/pi*cellside^4 
-
+  
 
 # Core Condatis Calculations -----------------------------------------------------------  
     
@@ -154,18 +150,16 @@ condatis<- function(hab, st, R, disp, filename, path, threshold=0.99, maxlink=10
   # combine progress, flow, standardised flow, and conductance into a data.frame for saving later
   f <- cbind(apt, progress = (v0 + 1)/2, flow = flo, std_flow = flo/max(flo), conductance = cond)
   
-  `%>%` <- dplyr::`%>%`
   # Create shapefile of standardised flow values (can be skipped if not needed)
-  f_shp<- sf::st_as_sf(f, coords = c("xm","ym"))%>%
-    sf::st_buffer(dist = (terra::xres(amap)/2), endCapStyle = 'SQUARE')
-
-  f_shp<-subset(f_shp, select = -c(cover))
-  f_shp<- terra::vect(f_shp)
+  f_shp <- SpatialPointsDataFrame(f[, c('xm', 'ym')], f[, 4:ncol(f)],
+                                  proj4string = crs(amap)) %>%
+    as('sf') %>%
+    st_buffer(dist = (xres(amap)/2), endCapStyle = 'SQUARE')
   
-  # Create a raster of flow and the 'progress' statistic (can be skipped if not needed)
-  
-  r_f <- terra::rasterize(f_shp, amap, field = 'flow')
-  r_p <- terra::rasterize(f_shp, amap, field = 'progress')
+  # Create a raster of standardised flow and the 'progress' statistic (can be skipped if not needed)
+  r <- raster(extent(amap), res = xres(amap), crs = crs(amap))
+  r_f <- rasterize(f_shp, r, field = 'flow')
+  r_p <- rasterize(f_shp, r, field = 'progress')
   
   ## Power calculations - for bottlenecks ##
   
@@ -226,7 +220,7 @@ condatis<- function(hab, st, R, disp, filename, path, threshold=0.99, maxlink=10
 
   powpoints<- powpoints[order(powpoints$label),] 
   
-  lineobj<- sfheaders::sf_linestring(
+  lineobj<- sf_linestring(
     obj = powpoints,
     x = 'xm',
     y = 'ym',
@@ -236,10 +230,10 @@ condatis<- function(hab, st, R, disp, filename, path, threshold=0.99, maxlink=10
     keep = TRUE)
   
   lineobj<-subset(lineobj, select = -c(type))
-  lineobj$length<-sf::st_length(lineobj)# calculate bottleneck length (units defined by coordinate reference system, here meters)
+  lineobj$length<-st_length(lineobj)# calculate bottleneck length (units defined by coordinate reference system, here meters)
   
   #assign spatial reference to bottlenecks
-  sf::st_crs(lineobj)<-raster::crs(amap)
+  st_crs(lineobj)<-crs(amap)
   
   speed_power<- as.data.frame(cbind(cond, sumpow))
   names(speed_power)<-c('Speed', 'Total power')
@@ -253,42 +247,42 @@ condatis<- function(hab, st, R, disp, filename, path, threshold=0.99, maxlink=10
   write.csv(speed_power, paste0(path,filename,'_speed_power.csv'))
   write.csv(f, paste0(path,filename,'_flow.csv'))
   write.csv(power, paste0(path,filename,'_power.csv'))
-  terra::writeRaster(r_f,paste0(path,filename,'_flow_raster.tif'),overwrite=TRUE)
-  terra::writeRaster(r_p,paste0(path,filename,'_progress_raster.tif'),overwrite=TRUE)
-  sf::st_write(lineobj, paste0(path,filename,'_bottlenecks.shp'), append = FALSE)
+  writeRaster(r_f,paste0(path,filename,'_flow_raster.tif'),overwrite=TRUE)
+  writeRaster(r_p,paste0(path,filename,'_progress_raster.tif'),overwrite=TRUE)
+  st_write(lineobj, paste0(path,filename,'_bottlenecks.shp'), append = FALSE)
   
 
   # Bottleneck areas --------------------------------------------------------
 
   err<-try({
     #select major bottlenecks
-    b_major<- dplyr::filter(lineobj, score>score_major[1] & score<score_major[2])
+    b_major<- filter(lineobj, score>score_major[1] & score<score_major[2])
     
     #create a point at the middle of bottleneck
-    b_major_point<- sf::st_line_sample(b_major, sample=0.5)
+    b_major_point<- st_line_sample(b_major, sample=0.5)
     
     #create a buffer
-    `%>%` <- dplyr::`%>%`
     b_major_buffer<- b_major_point%>%
-      sf::st_sf()%>%#allows to add columns
-      dplyr::mutate(m= dplyr::filter(lineobj, score>score_major[1] & score<score_major[2]))%>%#add bottlenecks information
-      dplyr::mutate(buf_length=m$length/2)%>% #calculate  bottleneck mid-length 
-      sf::st_sf()
+      st_sf()%>%#allows to add columns
+      mutate(m= filter(lineobj, score>score_major[1] & score<score_major[2]))%>%#add bottlenecks information
+      mutate(buf_length=m$length/2)%>%#calculate  bottleneck mid-length 
+      st_sf()
     
-    b_major_buffer<-sf::st_buffer(b_major_buffer, b_major_buffer$buf_length) #use mid-length as buffer distance
+    b_major_buffer<-st_buffer(b_major_buffer, b_major_buffer$buf_length) #use mid-length as buffer distance
     
     #dissolve overlapping buffers into separate polygons (units)
     b_major_units<-b_major_buffer%>%
-      sf::st_union()%>%
-      sf::st_cast('POLYGON')%>%
-      sf::st_sf() %>%
-      dplyr::mutate(
-        unit = dplyr::row_number()) #assigns each polygon an ID
+      st_union()%>%
+      st_cast('POLYGON')%>%
+      st_sf %>%
+      mutate(
+        unit = row_number()) #assigns each polygon an ID
     
     #add information of unit to  individual buffers
-    b_m_score_sum<- sf::st_join(b_major_units, b_major_buffer)%>%
-      dplyr::group_by(unit)%>%
-      dplyr::mutate(sumscore=sum(m$score),#calculate the sum of score in each unit
+    b_m_score_sum<- st_join(b_major_units, b_major_buffer)%>%
+      group_by(unit)%>%
+      mutate(
+        sumscore=sum(m$score),#calculate the sum of score in each unit
         line_count=NA) #create a field to record the number of buffers that form each unit
     
     #calculate the number of buffers that form each unit
@@ -300,35 +294,38 @@ condatis<- function(hab, st, R, disp, filename, path, threshold=0.99, maxlink=10
     #remove unnecessary information
     b_m_score_sum<-subset(b_m_score_sum, select = -c(unit,buf_length))
     
- 
+    #save major bottleneck area shapefile
+    st_write(b_m_score_sum, paste0(path, filename,'_bottleneck_major_area.shp'), append=FALSE)
+    
+    
     #select severe bottlenecks
-    b_severe<- dplyr::filter(lineobj, score>score_severe)
+    b_severe<- filter(lineobj, score>score_severe)
     
     #create a point at the middle of bottleneck
-    b_severe_point<- sf::st_line_sample(b_severe, sample=0.5)
+    b_severe_point<- st_line_sample(b_severe, sample=0.5)
     
     #create a buffer
     b_severe_buffer<-b_severe_point%>%
-      sf::st_sf()%>%#allows to add columns
-      dplyr::mutate(s= dplyr::filter(lineobj, score>score_severe))%>%#add bottlenecks information
-      dplyr::mutate(buf_length=s$length/2)%>%
-      sf::st_sf()
+      st_sf %>%#allows to add columns
+      mutate(s= filter(lineobj, score>score_severe))%>%#add bottlenecks information
+      mutate(buf_length=s$length/2)%>%
+      st_sf()
     
     #calculate  bottleneck mid-length 
-    b_severe_buffer<-sf::st_buffer(b_severe_buffer, b_severe_buffer$buf_length) #use mid-length as buffer distance
+    b_severe_buffer<-st_buffer(b_severe_buffer, b_severe_buffer$buf_length) #use mid-length as buffer distance
     
     #identify overlapping buffers
     b_severe_units<-b_severe_buffer%>%
-      sf::st_union()%>% #merges all buffer in single feature
-      sf::st_cast('POLYGON')%>% #disaggregate into multiple polygons (i.e. overlapping buffers)
-      sf::st_sf()%>%
-      dplyr::mutate(
-        unit = dplyr::row_number()) #assigns each polygon an ID
+      st_union()%>% #merges all buffer in single feature
+      st_cast('POLYGON')%>% #disaggregate into multiple polygons (i.e. overlapping buffers)
+      st_sf %>%
+      mutate(
+        unit = row_number()) #assigns each polygon an ID
     
     #add information of unit to  individual buffers
-    b_s_score_sum<- sf::st_join(b_severe_units, b_severe_buffer)%>%
-      dplyr::group_by(unit)%>%
-      dplyr::mutate(
+    b_s_score_sum<- st_join(b_severe_units, b_severe_buffer)%>%
+      group_by(unit)%>%
+      mutate(
         sumscore=sum(s$score),#calculate the sum of score in each unit
         line_count=NA) #create a field to record the number of buffers that form each unit
     
@@ -340,12 +337,15 @@ condatis<- function(hab, st, R, disp, filename, path, threshold=0.99, maxlink=10
     
     #remove unnecessary information
     b_s_score_sum<-subset(b_s_score_sum, select = -c(unit,buf_length))
-   
+    
+    #save shapefile
+    st_write(b_s_score_sum, paste0(path, filename,'_bottleneck_severe_area.shp'), append=FALSE)
+
   })
   
   if(!inherits(err,"try-error")){
-    sf::st_write(b_m_score_sum, paste0(path, filename,'_bottleneck_major_area.shp'), append=FALSE)
-    sf::st_write(b_s_score_sum, paste0(path, filename,'_bottleneck_severe_area.shp'), append=FALSE)
+    st_write(b_m_score_sum, paste0(path, filename,'_bottleneck_major_area.shp'), append=FALSE)
+    st_write(b_s_score_sum, paste0(path, filename,'_bottleneck_severe_area.shp'), append=FALSE)
   }
   
   # return result list --------------------------------------------------------
@@ -355,4 +355,5 @@ condatis<- function(hab, st, R, disp, filename, path, threshold=0.99, maxlink=10
   return(results)
 }
 
-
+library(rstudioapi)
+previewRd('functions/condatis_bottlenecks_documentation.Rd')

@@ -7,8 +7,6 @@
 library(sf)
 library(tydiverse)
 
-
-
 #Surrey heathlands local bottlenecks-------------------
 
 project<-st_read('spatial_data/original/SurreyHeathlands/Heathlands Connections with Buffer_1.shp')
@@ -22,6 +20,9 @@ nh_heath<-st_read('spatial_data/derived/national/NH_heath.shp')%>%
   subset(Class== 'Network Expansion Zone'|Class=='Network Enhancement Zone 1'|Class=='Fragmentation Action Zone')%>%
   st_union()
 plot(nh_heath)
+
+nh_heath_area<-as.numeric(sum(st_area(nh_heath)/1000000))
+#185.6033
 
 nh_bn_overlap<-st_intersection(nh_heath, major_bn)
 plot(nh_bn_overlap)
